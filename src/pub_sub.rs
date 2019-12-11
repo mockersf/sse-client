@@ -1,21 +1,30 @@
 use std::collections::HashMap;
 
-pub struct Bus<ListenerData> where ListenerData: Clone {
-    listeners: HashMap<String, Vec<Box<Fn(ListenerData) + Send>>>
+pub struct Bus<ListenerData>
+where
+    ListenerData: Clone,
+{
+    listeners: HashMap<String, Vec<Box<Fn(ListenerData) + Send>>>,
 }
 
-impl<ListenerData> Bus <ListenerData> where ListenerData: Clone {
+impl<ListenerData> Bus<ListenerData>
+where
+    ListenerData: Clone,
+{
     pub fn new() -> Bus<ListenerData> {
         let listeners = HashMap::new();
         Bus { listeners }
     }
 
-    pub fn subscribe<F>(&mut self, name: String, listener: F) where F: Fn(ListenerData) + Send + 'static {
+    pub fn subscribe<F>(&mut self, name: String, listener: F)
+    where
+        F: Fn(ListenerData) + Send + 'static,
+    {
         let listener = Box::new(listener);
         if self.listeners.contains_key(&name) {
             self.listeners.get_mut(&name).unwrap().push(listener);
         } else {
-            self.listeners.insert(name, vec!(listener));
+            self.listeners.insert(name, vec![listener]);
         }
     }
 

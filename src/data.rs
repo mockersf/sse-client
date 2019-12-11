@@ -1,5 +1,5 @@
 pub struct EventBuilder {
-    pending_event: EventBuilderState
+    pending_event: EventBuilderState,
 }
 
 /// Event data sent by server
@@ -10,25 +10,31 @@ pub struct Event {
     /// Represents message `event` field. Default "message".
     pub type_: String,
     /// Represents message `data` field. Default "".
-    pub data: String
+    pub data: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum EventBuilderState {
     Empty,
     Pending(Event),
-    Complete(Event)
+    Complete(Event),
 }
 
 impl Event {
     pub fn new(type_: &str, data: &str) -> Event {
-        Event { id: String::from(""), type_: String::from(type_), data: String::from(data) }
+        Event {
+            id: String::from(""),
+            type_: String::from(type_),
+            data: String::from(data),
+        }
     }
 }
 
 impl EventBuilder {
     pub fn new() -> EventBuilder {
-        EventBuilder { pending_event: EventBuilderState::Empty }
+        EventBuilder {
+            pending_event: EventBuilderState::Empty,
+        }
     }
 
     pub fn update(&mut self, message: &str) -> EventBuilderState {
@@ -45,14 +51,14 @@ impl EventBuilder {
         self.pending_event = match self.pending_event {
             EventBuilderState::Complete(_) => EventBuilderState::Empty,
             EventBuilderState::Pending(ref event) => EventBuilderState::Complete(event.clone()),
-            ref e => e.clone()
+            ref e => e.clone(),
         };
     }
 
     fn update_event(&mut self, message: &str) -> EventBuilderState {
         let mut pending_event = match &self.pending_event {
             EventBuilderState::Pending(ref e) => e.clone(),
-            _ => Event::new("message", "")
+            _ => Event::new("message", ""),
         };
 
         match parse_field(message) {
@@ -66,11 +72,11 @@ impl EventBuilder {
     }
 
     pub fn clear(&mut self) {
-        self.pending_event =  EventBuilderState::Empty;
+        self.pending_event = EventBuilderState::Empty;
     }
 
     pub fn get_event(&self) -> EventBuilderState {
-       self.pending_event.clone()
+        self.pending_event.clone()
     }
 }
 
@@ -237,7 +243,6 @@ mod tests {
         } else {
             panic!("event should be pending");
         }
-
     }
 
     #[test]

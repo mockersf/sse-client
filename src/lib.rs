@@ -41,24 +41,23 @@ extern crate url;
 #[cfg(test)]
 extern crate http_test_server;
 
+mod data;
 mod network;
 mod pub_sub;
-mod data;
 
-use std::sync::{Arc, Mutex, mpsc };
-use url::{Url, ParseError};
+use data::{EventBuilder, EventBuilderState};
 use network::EventStream;
 use pub_sub::Bus;
-use data::{EventBuilder, EventBuilderState};
+use std::sync::{mpsc, Arc, Mutex};
+use url::{ParseError, Url};
 
 pub use data::Event;
 pub use network::State;
 
-
 /// Interface to interact with `event-streams`
 pub struct EventSource {
     bus: Arc<Mutex<Bus<Event>>>,
-    stream: Arc<Mutex<EventStream>>
+    stream: Arc<Mutex<EventStream>>,
 }
 
 impl EventSource {
@@ -98,7 +97,7 @@ impl EventSource {
             handle_message(&message, &event_builder, &event_bus, &stream_for_update);
         });
 
-        Ok(EventSource{ stream, bus })
+        Ok(EventSource { stream, bus })
     }
 
     /// Close connection.
@@ -128,8 +127,13 @@ impl EventSource {
     ///     println!("Connection stabilished!");
     /// });
     /// ```
-    pub fn on_open<F>(&self, listener: F) where F: Fn() + Send + 'static {
-        self.add_event_listener("stream_opened", move |_| { listener(); });
+    pub fn on_open<F>(&self, listener: F)
+    where
+        F: Fn() + Send + 'static,
+    {
+        self.add_event_listener("stream_opened", move |_| {
+            listener();
+        });
     }
 
     /// Triggered when `message` event is received.
@@ -146,7 +150,10 @@ impl EventSource {
     ///     println!("Message received: {}", message.data);
     /// });
     /// ```
-    pub fn on_message<F>(&self, listener: F) where F: Fn(Event) + Send + 'static {
+    pub fn on_message<F>(&self, listener: F)
+    where
+        F: Fn(Event) + Send + 'static,
+    {
         self.add_event_listener("message", listener);
     }
 
@@ -177,7 +184,10 @@ impl EventSource {
     ///     println!("Message received: {}", message.data);
     /// });
     /// ```
-    pub fn add_event_listener<F>(&self, event_type: &str, listener: F) where F: Fn(Event) + Send + 'static {
+    pub fn add_event_listener<F>(&self, event_type: &str, listener: F)
+    where
+        F: Fn(Event) + Send + 'static,
+    {
         let mut bus = self.bus.lock().unwrap();
         bus.subscribe(event_type.to_string(), listener);
     }
@@ -249,8 +259,8 @@ fn handle_message(
     message: &str,
     event_builder: &Arc<Mutex<EventBuilder>>,
     event_bus: &Arc<Mutex<Bus<Event>>>,
-    event_stream: &Arc<Mutex<EventStream>>) {
-
+    event_stream: &Arc<Mutex<EventStream>>,
+) {
     let mut event_builder = event_builder.lock().unwrap();
 
     if let EventBuilderState::Complete(event) = event_builder.update(&message) {
@@ -264,21 +274,22 @@ fn handle_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use http_test_server::http::Status;
+    use http_test_server::{Resource, TestServer};
+    use std::sync::mpsc;
     use std::thread;
     use std::time::Duration;
-    use std::sync::mpsc;
-    use http_test_server::{ TestServer, Resource };
-    use http_test_server::http::Status;
 
     fn setup() -> (TestServer, Resource, String) {
         let server = TestServer::new().unwrap();
         let resource = server.create_resource("/sub");
-        resource.header("Content-Type", "text/event-stream").stream();
+        resource
+            .header("Content-Type", "text/event-stream")
+            .stream();
         let address = format!("http://localhost:{}/sub", server.port());
         thread::sleep(Duration::from_millis(100));
         (server, resource, address)
     }
-
 
     #[test]
     fn should_create_client() {
@@ -292,7 +303,7 @@ mod tests {
     fn should_thrown_an_error_when_malformed_url_provided() {
         match EventSource::new("127.0.0.1:1236/sub") {
             Ok(_) => assert!(false, "should had thrown an error"),
-            Err(_) => assert!(true)
+            Err(_) => assert!(true),
         }
     }
 
@@ -311,7 +322,8 @@ mod tests {
         }
 
         stream_endpoint
-            .send_line("data: some message").send_line("");
+            .send_line("data: some message")
+            .send_line("");
 
         let message = rx.recv().unwrap();
         assert_eq!(message, "some message");
@@ -338,7 +350,9 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        stream_endpoint.send_line("data: some message").send_line("");
+        stream_endpoint
+            .send_line("data: some message")
+            .send_line("");
 
         let message = rx.recv().unwrap();
         let message2 = rx.recv().unwrap();
@@ -362,7 +376,7 @@ mod tests {
 
         while event_source.state() != State::Open {
             thread::sleep(Duration::from_millis(100));
-        };
+        }
 
         stream_endpoint
             .send_line("data: message")
@@ -394,7 +408,7 @@ mod tests {
 
         while event_source.state() != State::Open {
             thread::sleep(Duration::from_millis(100));
-        };
+        }
 
         stream_endpoint
             .send_line("data: message")
@@ -465,13 +479,13 @@ mod tests {
         let (_server, stream_endpoint, address) = setup();
         let event_source = EventSource::new(&address).unwrap();
 
-         event_source.on_message(move |message| {
+        event_source.on_message(move |message| {
             tx.send(message.data).unwrap();
         });
 
         while event_source.state() != State::Open {
             thread::sleep(Duration::from_millis(100));
-        };
+        }
 
         stream_endpoint.send("\ndata: some message\n\n");
         rx.recv().unwrap();
@@ -502,9 +516,7 @@ mod tests {
     #[test]
     fn should_return_stream_connection_status() {
         let (_server, stream_endpoint, address) = setup();
-        stream_endpoint
-            .delay(Duration::from_millis(200))
-            .stream();
+        stream_endpoint.delay(Duration::from_millis(200)).stream();
 
         let event_source = EventSource::new(&address).unwrap();
         thread::sleep(Duration::from_millis(100));
@@ -520,7 +532,6 @@ mod tests {
 
         assert_eq!(event_source.state(), State::Closed);
     }
-
 
     #[test]
     fn should_send_last_event_id_on_reconnection() {
