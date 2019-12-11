@@ -249,6 +249,25 @@ impl EventSource {
 
         rx
     }
+
+    /// Returns a receiver that is triggered on any new event or error.
+    pub fn events_receiver(&self, events: &[&str]) -> mpsc::Receiver<Event> {
+        let (tx, rx) = mpsc::channel();
+        let error_tx = tx.clone();
+
+        for event in events {
+            let event_tx = tx.clone();
+            self.add_event_listener(event, move |event| {
+                event_tx.send(event).unwrap();
+            });
+        }
+
+        self.add_event_listener("error", move |error| {
+            error_tx.send(error).unwrap();
+        });
+
+        rx
+    }
 }
 
 fn publish_initial_stream_event(event_bus: &Arc<Mutex<Bus<Event>>>) {
